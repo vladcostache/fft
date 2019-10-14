@@ -3,8 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
-int T;
+int T, n;
 double complex *input;
 double complex *results;
 
@@ -22,7 +23,7 @@ void getArgs(int argc, char **argv){
 }
 
 
-void init(int n){
+void init(){
     input = malloc(sizeof(double complex) * n);
     results = malloc(sizeof(double complex) * n);
     if(input == NULL || results == NULL) {
@@ -32,19 +33,23 @@ void init(int n){
 
 }
 
-void ft_complex(int n) {
-	int i, k;
+
+void* ft_iterative(void *var){
+    int thread_id = *(int*)var;
+    int i, k;
     for (k = 0; k < n; k++) {  // For each output element
-		complex double sum = 0.0;
-		for (i = 0; i < n; i++) {  // For each input element
-			double angle = 2 * M_PI * i * k / n;
-			sum += input[i] * cexp(-angle * I);
-		}
-		results[k] = sum;
-	}
+        complex double sum = 0.0;
+        for (i = 0; i < n; i++) {  // For each input element
+            double angle = 2 * M_PI * i * k / n;
+            sum += input[i] * cexp(-angle * I);
+        }
+        results[k] = sum;
+    }
+    return 0;
 }
 
-void printResults(int n) {
+
+void printResults() {
 	FILE *out = fopen(output_file, "w");
     if (out == NULL) {
         fprintf(stdout, "Failed to open output file.\n");
@@ -58,17 +63,17 @@ void printResults(int n) {
     fclose(out);
 }
 
-int readInput(){
+void readInput(){
     FILE *in = fopen(input_file, "r");
     if (in == NULL) {
         fprintf(stdout, "Failed to open input file.\n");
         exit(1);
     }
-    int n, i, ret;
+    int i, ret;
     ret = fscanf(in, "%d", &n);
     if (ret != 1)
         fprintf(stdout, "Failed to read N.\n");
-    init(n);
+    init();
     double aux;
     for (i = 0; i < n; i++){
         aux = 0;
@@ -78,20 +83,29 @@ int readInput(){
         input[i] = aux + 0*I;
     }
     fclose(in);
-    return n;
 }
 
 
 int main(int argc, char * argv[]){
 
     getArgs(argc, argv);
+    readInput();
 
-    int n = readInput();
-    
-    ft_complex(n);
+    pthread_t tid[T];
+    int thread_id[T];
+    int i;
+    for(i = 0; i < T; i++)
+        thread_id[i] = i;
 
-    printResults(n);
+    for(i = 0; i < T; i++) {
+        pthread_create(&(tid[i]), NULL, ft_iterative, &(thread_id[i]));
+    }
 
+    for(i = 0; i < T; i++) {
+        pthread_join(tid[i], NULL);
+    }
+
+    printResults();
 
     return 0;
 
