@@ -4,48 +4,62 @@
 #include <stdlib.h>
 
 
-void ft_complex(const double complex input[], double complex results[], int n) {
+void ft_complex(int n, double complex input[], double complex results[]) {
 	for (int k = 0; k < n; k++) {  // For each output element
 		complex double sum = 0.0;
 		for (int i = 0; i < n; i++) {  // For each input element
 			double angle = 2 * M_PI * i * k / n;
-			sum += input[t] * cexp(-angle * I);
+			sum += input[i] * cexp(-angle * I);
 		}
 		results[k] = sum;
 	}
 }
 
-void printResults(int n, double complex results[]) {
-	printf("%d\n", n);
+void printResults(char *filename, int n, double complex results[]) {
+	FILE *out = fopen(filename, "w");
+    if (out == NULL) {
+        fprintf(stdout, "Failed to open output file.\n");
+        exit(1);
+    }
+    fprintf(out, "%d\n", n); // Print N
 	for (int i = 0; i < n; i++)
-			printf("(%g, %g) ", creal(results[i]), cimag(results[i]));
+			fprintf(out, "%f %f\n", creal(results[i]), cimag(results[i]));
+
+    fclose(out);
 }
 
 int main(int argc, char * argv[]){
 
     FILE *in = fopen(argv[1], "r");
-    FILE *out = fopen(argv[2], "w");
 
-    if (fp1 == NULL || fp2 == NULL) {
-        fprintf(stdout, "Failed to open at least one file.\n");
+    if (in == NULL) {
+        fprintf(stdout, "Failed to open input file.\n");
         exit(1);
     }
 
-    int n, i;
-    fscanf(in, "%d", &n);
+    int n, i, ret;
+    ret = fscanf(in, "%d", &n);
+    if (ret != 1)
+    	fprintf(stdout, "Failed to read N.\n");
 
-    double complex input[] = {166.000000, 740.000000, 881.000000, 241.000000, 12.000000, 758.000000};
-    double complex results[] = {0};
-
-    for (i = 0; i < n; i++)
-        fscanf(in, "%lf", input[i]);
+    double complex input[5000] = {0};
+    double complex results[5000] = {0};
     
-    ft_complex(input, results, n);
+    double aux;
 
-    printResults(n, results);
+    for (i = 0; i < n; i++){
+        aux = 0;
+        ret = fscanf(in, "%lf", &aux);
+        if(ret != 1)
+        	fprintf(stdout, "Failed to read value no. %d.\n", i);
+        input[i] = aux + 0*I;
+    }
+    
+    ft_complex(n, input, results);
+
+    printResults(argv[2], n, results);
 
     fclose(in);
-    fclose(out);
     return 0;
 
 }
