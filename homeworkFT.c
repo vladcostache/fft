@@ -12,6 +12,8 @@ double complex *results;
 char input_file[30];
 char output_file[30];
 
+pthread_barrier_t barrier;
+
 void getArgs(int argc, char **argv){
     if(argc < 4) {
         printf("Not enough paramters: ./program input_file output_file num_threads\n");
@@ -36,14 +38,21 @@ void init(){
 
 void* ft_iterative(void *var){
     int thread_id = *(int*)var;
+
+    int start = ceil((double)n/T) * thread_id;
+    int end = fmin(n, ceil((double)n/T) * (thread_id+1));
+
     int i, k;
-    for (k = 0; k < n; k++) {  // For each output element
+    for (k = start; k < end; k++) {  // For each output element
         complex double sum = 0.0;
+      //  pthread_barrier_wait(&barrier);
         for (i = 0; i < n; i++) {  // For each input element
             double angle = 2 * M_PI * i * k / n;
             sum += input[i] * cexp(-angle * I);
         }
+
         results[k] = sum;
+        pthread_barrier_wait(&barrier);
     }
     return 0;
 }
@@ -89,10 +98,13 @@ void readInput(){
 int main(int argc, char * argv[]){
 
     getArgs(argc, argv);
+    
     readInput();
 
     pthread_t tid[T];
     int thread_id[T];
+    pthread_barrier_init(&barrier, NULL, T);
+
     int i;
     for(i = 0; i < T; i++)
         thread_id[i] = i;
@@ -105,6 +117,8 @@ int main(int argc, char * argv[]){
         pthread_join(tid[i], NULL);
     }
 
+    pthread_barrier_destroy(&barrier);
+    
     printResults();
 
     return 0;
