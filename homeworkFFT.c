@@ -7,6 +7,7 @@
 
 int T, n;
 double complex *input;
+double complex *aux;
 double complex *results;
 
 char input_file[30];
@@ -36,26 +37,27 @@ void init(){
 }
 
 
-void* ft_iterative(void *var){
-    int thread_id = *(int*)var;
-
-    int start = ceil((double)n/T) * thread_id;
-    int end = fmin(n, ceil((double)n/T) * (thread_id+1));
-
-    int i, k;
-    for (k = start; k < end; k++) {  // For each output element
-        complex double sum = 0.0;
-        for (i = 0; i < n; i++) {  // For each input element
-            double angle = 2 * M_PI * i * k / n;
-            sum += input[i] * cexp(-angle * I);
+void _fft(double complex *input, double complex *results, int step)
+{
+    if (step < n) {
+        _fft(results, input, step * 2);
+        _fft(results + step, input + step, step * 2);
+        int i;
+        for (i = 0; i < n; i += 2 * step) {
+            double complex t = cexp(-I * M_PI * i / n) * results[i + step];
+            input[i / 2]     = results[i] + t;
+            input[(i + n)/2] = results[i] - t;
         }
-
-        results[k] = sum;
-        pthread_barrier_wait(&barrier);
     }
-    return 0;
 }
-
+ 
+void fft(){
+    int i;
+    for (i = 0; i < n; i++) 
+        results[i] = input[i];
+ 
+    _fft(input, results, 1);
+}
 
 void printResults() {
 	FILE *out = fopen(output_file, "w");
@@ -66,7 +68,7 @@ void printResults() {
     fprintf(out, "%d\n", n); // Print N
     int i;
 	for (i = 0; i < n; i++)
-			fprintf(out, "%f %f\n", creal(results[i]), cimag(results[i]));
+			fprintf(out, "%f %f\n", creal(input[i]), cimag(input[i]));
 
     fclose(out);
 }
@@ -100,23 +102,25 @@ int main(int argc, char * argv[]){
     
     readInput();
 
-    pthread_t tid[T];
-    int thread_id[T];
-    pthread_barrier_init(&barrier, NULL, T);
+    // pthread_t tid[T];
+    // int thread_id[T];
+    // pthread_barrier_init(&barrier, NULL, T);
 
-    int i;
-    for(i = 0; i < T; i++)
-        thread_id[i] = i;
+    // int i;
+    // for(i = 0; i < T; i++)
+    //     thread_id[i] = i;
 
-    for(i = 0; i < T; i++) {
-        pthread_create(&(tid[i]), NULL, ft_iterative, &(thread_id[i]));
-    }
+    // for(i = 0; i < T; i++) {
+    //     pthread_create(&(tid[i]), NULL, ft_iterative, &(thread_id[i]));
+    // }
 
-    for(i = 0; i < T; i++) {
-        pthread_join(tid[i], NULL);
-    }
+    // for(i = 0; i < T; i++) {
+    //     pthread_join(tid[i], NULL);
+    // }
 
-    pthread_barrier_destroy(&barrier);
+    // pthread_barrier_destroy(&barrier);
+
+    fft();
     
     printResults();
 
