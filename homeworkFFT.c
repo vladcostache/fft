@@ -16,6 +16,7 @@ char output_file[30];
 typedef struct {
     double *input;
     double *results;
+    int step;
 }bufs;
 
 bufs args;
@@ -56,11 +57,24 @@ void init(){
 //     }
 // }
 
-// void* _fft(void* args){
+void* _fft(void* ptr){
 
+    bufs args = *(bufs*)ptr;
+    if (args.step < n) {
+        args.step *= 2;
+        _fft((void *)&args);
+        args.results
+        _fft(args.results + args.step, args.input + args.step, args.step * 2);
+        int i;
+        for (i = 0; i < n; i += 2 * args.step) {
+            double complex t = cexp(-I * M_PI * i / n) * args.results[i + args.step];
+            args.input[i / 2]     = args.results[i] + t;
+            args.input[(i + n)/2] = args.results[i] - t;
+        }
+    }
+    return NULL;
 
-
-// }
+}
 
 
 
@@ -122,22 +136,20 @@ int main(int argc, char * argv[]){
     int i;
     for (i = 0; i < n; i++) 
         args.results[i] = args.input[i];
-
+    args.step = 1;
     
     // int thread_id[T];
     // pthread_barrier_init(&barrier, NULL, T);
 
     pthread_t tid[T];
 
-    // for(i = 0; i < T; i++)
-    //     thread_id[i] = i;
-
-
     pthread_create(&(tid[0]), NULL, _fft, (void *)&args);
 
     // for(i = 0; i < T; i++) {
     //     pthread_create(&(tid[i]), NULL, ft_iterative, &(thread_id[i]));
     // }
+
+    pthread_join(tid[0], NULL);
 
     // for(i = 0; i < T; i++) {
     //     pthread_join(tid[i], NULL);
