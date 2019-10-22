@@ -5,15 +5,20 @@
 #include <string.h>
 #include <pthread.h>
 
-int T, n;
-double complex *input;
-double complex *aux;
-double complex *results;
+int T; // Number of threads
+int n; // Number of elements
 
+// Filename buffers
 char input_file[30];
 char output_file[30];
 
-pthread_barrier_t barrier;
+// Thread function args structure
+typedef struct {
+    double *input;
+    double *results;
+}bufs;
+
+bufs args;
 
 void getArgs(int argc, char **argv){
     if(argc < 4) {
@@ -27,9 +32,9 @@ void getArgs(int argc, char **argv){
 
 
 void init(){
-    input = malloc(sizeof(double complex) * n);
-    results = malloc(sizeof(double complex) * n);
-    if(input == NULL || results == NULL) {
+    args.input = malloc(sizeof(double complex) * n);
+    args.results = malloc(sizeof(double complex) * n);
+    if(args.input == NULL || args.results == NULL) {
         fprintf(stdout, "Malloc failed!");
         exit(1);
     }
@@ -37,27 +42,40 @@ void init(){
 }
 
 
-void _fft(double complex *input, double complex *results, int step)
-{
-    if (step < n) {
-        _fft(results, input, step * 2);
-        _fft(results + step, input + step, step * 2);
-        int i;
-        for (i = 0; i < n; i += 2 * step) {
-            double complex t = cexp(-I * M_PI * i / n) * results[i + step];
-            input[i / 2]     = results[i] + t;
-            input[(i + n)/2] = results[i] - t;
-        }
-    }
-}
+// void* _fft(double complex *input, double complex *results, int step)
+// {
+//     if (step < n) {
+//         _fft(results, input, step * 2);
+//         _fft(results + step, input + step, step * 2);
+//         int i;
+//         for (i = 0; i < n; i += 2 * step) {
+//             double complex t = cexp(-I * M_PI * i / n) * results[i + step];
+//             input[i / 2]     = results[i] + t;
+//             input[(i + n)/2] = results[i] - t;
+//         }
+//     }
+// }
+
+// void* _fft(void* args){
+
+
+
+// }
+
+
+
+
+
+
+
+
+
+
+    // _fft(results, input, step * 2);
+    // _fft(results + step, input + step, step * 2);
+    // _fft(results + step + 1, input + step + 1, step * 2);
+    // _fft(results + step + 2, input + step + 2, step * 2);
  
-void fft(){
-    int i;
-    for (i = 0; i < n; i++) 
-        results[i] = input[i];
- 
-    _fft(input, results, 1);
-}
 
 void printResults() {
 	FILE *out = fopen(output_file, "w");
@@ -68,7 +86,7 @@ void printResults() {
     fprintf(out, "%d\n", n); // Print N
     int i;
 	for (i = 0; i < n; i++)
-			fprintf(out, "%f %f\n", creal(input[i]), cimag(input[i]));
+			fprintf(out, "%f %f\n", creal(args.input[i]), cimag(args.input[i]));
 
     fclose(out);
 }
@@ -90,7 +108,7 @@ void readInput(){
         ret = fscanf(in, "%lf", &aux);
         if(ret != 1)
             fprintf(stdout, "Failed to read value no. %d.\n", i);
-        input[i] = aux + 0*I;
+        args.input[i] = aux + 0*I;
     }
     fclose(in);
 }
@@ -101,14 +119,21 @@ int main(int argc, char * argv[]){
     getArgs(argc, argv);
     
     readInput();
+    int i;
+    for (i = 0; i < n; i++) 
+        args.results[i] = args.input[i];
 
-    // pthread_t tid[T];
+    
     // int thread_id[T];
     // pthread_barrier_init(&barrier, NULL, T);
 
-    // int i;
+    pthread_t tid[T];
+
     // for(i = 0; i < T; i++)
     //     thread_id[i] = i;
+
+
+    pthread_create(&(tid[0]), NULL, _fft, (void *)&args);
 
     // for(i = 0; i < T; i++) {
     //     pthread_create(&(tid[i]), NULL, ft_iterative, &(thread_id[i]));
@@ -120,7 +145,6 @@ int main(int argc, char * argv[]){
 
     // pthread_barrier_destroy(&barrier);
 
-    fft();
     
     printResults();
 
