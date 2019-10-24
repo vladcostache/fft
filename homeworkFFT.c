@@ -12,14 +12,16 @@ int n; // Number of elements
 char input_file[30];
 char output_file[30];
 
+double complex *input;
+double complex *results;
+
 // Thread function args structure
 typedef struct {
-    double *input;
-    double *results;
+    int index;
     int step;
-}bufs;
+}inds;
 
-bufs args;
+inds args;
 
 void getArgs(int argc, char **argv){
     if(argc < 4) {
@@ -33,9 +35,9 @@ void getArgs(int argc, char **argv){
 
 
 void init(){
-    args.input = malloc(sizeof(double complex) * n);
-    args.results = malloc(sizeof(double complex) * n);
-    if(args.input == NULL || args.results == NULL) {
+    input = malloc(sizeof(double complex) * n);
+    results = malloc(sizeof(double complex) * n);
+    if(input == NULL || results == NULL) {
         fprintf(stdout, "Malloc failed!");
         exit(1);
     }
@@ -59,17 +61,15 @@ void init(){
 
 void* _fft(void* ptr){
 
-    bufs args = *(bufs*)ptr;
+    inds args = *(inds*)ptr;
     if (args.step < n) {
-        args.step *= 2;
         _fft((void *)&args);
-        args.results
-        _fft(args.results + args.step, args.input + args.step, args.step * 2);
+        _fft(results + args.step, input + args.step, args.step * 2);
         int i;
         for (i = 0; i < n; i += 2 * args.step) {
-            double complex t = cexp(-I * M_PI * i / n) * args.results[i + args.step];
-            args.input[i / 2]     = args.results[i] + t;
-            args.input[(i + n)/2] = args.results[i] - t;
+            double complex t = cexp(-I * M_PI * i / n) * results[i + args.step];
+            input[i / 2]     = results[i] + t;
+            input[(i + n)/2] = results[i] - t;
         }
     }
     return NULL;
@@ -77,6 +77,21 @@ void* _fft(void* ptr){
 }
 
 
+void twoThreads(){
+
+
+
+    _fft(results, input, step * 2);
+    _fft(results + step, input + step, step * 2);
+}
+
+void fourThreads(){
+
+    
+
+    _fft(results, input, step * 2);
+    _fft(results + step, input + step, step * 2);
+}
 
 
 
@@ -100,7 +115,7 @@ void printResults() {
     fprintf(out, "%d\n", n); // Print N
     int i;
 	for (i = 0; i < n; i++)
-			fprintf(out, "%f %f\n", creal(args.input[i]), cimag(args.input[i]));
+			fprintf(out, "%f %f\n", creal(input[i]), cimag(input[i]));
 
     fclose(out);
 }
@@ -122,7 +137,7 @@ void readInput(){
         ret = fscanf(in, "%lf", &aux);
         if(ret != 1)
             fprintf(stdout, "Failed to read value no. %d.\n", i);
-        args.input[i] = aux + 0*I;
+        input[i] = aux + 0*I;
     }
     fclose(in);
 }
@@ -135,7 +150,7 @@ int main(int argc, char * argv[]){
     readInput();
     int i;
     for (i = 0; i < n; i++) 
-        args.results[i] = args.input[i];
+        results[i] = input[i];
     args.step = 1;
     
     // int thread_id[T];
