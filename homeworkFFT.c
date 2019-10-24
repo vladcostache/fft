@@ -45,58 +45,68 @@ void init(){
 }
 
 
-// void* _fft(double complex *input, double complex *results, int step)
-// {
-//     if (step < n) {
-//         _fft(results, input, step * 2);
-//         _fft(results + step, input + step, step * 2);
+// void* _fft(void* ptr){
+
+//     inds args = *(inds*)ptr;
+//     if (args.step < n) {
+//         _fft((void *)&args);
+//         _fft(results + args.step, input + args.step, args.step * 2);
 //         int i;
-//         for (i = 0; i < n; i += 2 * step) {
-//             double complex t = cexp(-I * M_PI * i / n) * results[i + step];
+//         for (i = 0; i < n; i += 2 * args.step) {
+//             double complex t = cexp(-I * M_PI * i / n) * results[i + args.step];
 //             input[i / 2]     = results[i] + t;
 //             input[(i + n)/2] = results[i] - t;
 //         }
 //     }
+//     return NULL;
+
 // }
 
-void* _fft(void* ptr){
-
-    inds args = *(inds*)ptr;
-    if (args.step < n) {
-        _fft((void *)&args);
-        _fft(results + args.step, input + args.step, args.step * 2);
-        int i;
-        for (i = 0; i < n; i += 2 * args.step) {
-            double complex t = cexp(-I * M_PI * i / n) * results[i + args.step];
+void _fft(double complex *input, double complex *results, int step){
+    
+    if (step < n) {
+        _fft(results, input, step * 2);
+        _fft(results + step, input + step, step * 2);
+ 
+        for (int i = 0; i < n; i += 2 * step) {
+            double complex t = cexp(-I * M_PI * i / n) * results[i + step];
             input[i / 2]     = results[i] + t;
             input[(i + n)/2] = results[i] - t;
         }
     }
-    return NULL;
+}
 
+void* thread_function1(void* args){
+
+    _fft(input, results, 2);
+    return NULL;
+}
+void* thread_function2(void* args){
+
+    _fft(input + 1, results + 1, 2);
+    return NULL;
 }
 
 
 void twoThreads(){
 
+    int i;
+    pthread_t tid[T];
 
-
-    _fft(results, input, step * 2);
-    _fft(results + step, input + step, step * 2);
-}
-
-void fourThreads(){
-
+    pthread_create(&(tid[0]), NULL, thread_function1, NULL);
+    pthread_create(&(tid[1]), NULL, thread_function2, NULL);
     
+    for(i = 0; i < T; i++) {
+        pthread_join(tid[i], NULL);
+    }
+    int step = 1;
+    for (int i = 0; i < n; i += 2 * step) {
+        double complex t = cexp(-I * M_PI * i / n) * input[i + step];
+        results[i / 2]     = input[i] + t;
+        results[(i + n)/2] = input[i] - t;
+    }
 
-    _fft(results, input, step * 2);
-    _fft(results + step, input + step, step * 2);
 }
-
-
-
-
-
 
 
 
@@ -115,8 +125,7 @@ void printResults() {
     fprintf(out, "%d\n", n); // Print N
     int i;
 	for (i = 0; i < n; i++)
-			fprintf(out, "%f %f\n", creal(input[i]), cimag(input[i]));
-
+			fprintf(out, "%f %f\n", creal(results[i]), cimag(results[i]));
     fclose(out);
 }
 
@@ -142,36 +151,39 @@ void readInput(){
     fclose(in);
 }
 
+void run(){
+
+    if (T == 1){
+        fprintf(stdout, "1 Thread \n");
+        _fft(results, input, 1);
+    }
+    else if (T == 2){
+        fprintf(stdout, "2 Threads \n");
+        twoThreads();
+        //exit(1);
+    }
+    else if (T == 4){
+        exit(1);
+    }
+    else {
+        fprintf(stdout, "No. of threads must be 1, 2, 4!");
+        exit(1);
+    }
+}
+
 
 int main(int argc, char * argv[]){
 
     getArgs(argc, argv);
     
     readInput();
+
     int i;
     for (i = 0; i < n; i++) 
         results[i] = input[i];
-    args.step = 1;
+    run();
+
     
-    // int thread_id[T];
-    // pthread_barrier_init(&barrier, NULL, T);
-
-    pthread_t tid[T];
-
-    pthread_create(&(tid[0]), NULL, _fft, (void *)&args);
-
-    // for(i = 0; i < T; i++) {
-    //     pthread_create(&(tid[i]), NULL, ft_iterative, &(thread_id[i]));
-    // }
-
-    pthread_join(tid[0], NULL);
-
-    // for(i = 0; i < T; i++) {
-    //     pthread_join(tid[i], NULL);
-    // }
-
-    // pthread_barrier_destroy(&barrier);
-
     
     printResults();
 
