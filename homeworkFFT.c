@@ -15,14 +15,6 @@ char output_file[30];
 double complex *input;
 double complex *results;
 
-// Thread function args structure
-typedef struct {
-    int index;
-    int step;
-}inds;
-
-inds args;
-
 void getArgs(int argc, char **argv){
     if(argc < 4) {
         printf("Not enough paramters: ./program input_file output_file num_threads\n");
@@ -44,24 +36,6 @@ void init(){
 
 }
 
-
-// void* _fft(void* ptr){
-
-//     inds args = *(inds*)ptr;
-//     if (args.step < n) {
-//         _fft((void *)&args);
-//         _fft(results + args.step, input + args.step, args.step * 2);
-//         int i;
-//         for (i = 0; i < n; i += 2 * args.step) {
-//             double complex t = cexp(-I * M_PI * i / n) * results[i + args.step];
-//             input[i / 2]     = results[i] + t;
-//             input[(i + n)/2] = results[i] - t;
-//         }
-//     }
-//     return NULL;
-
-// }
-
 void _fft(double complex *input, double complex *results, int step){
     
     if (step < n) {
@@ -76,14 +50,28 @@ void _fft(double complex *input, double complex *results, int step){
     }
 }
 
-void* thread_function1(void* args){
+void* thread_function1(void *var){
 
-    _fft(input, results, 2);
+    int step = *(int*)var;
+    _fft(input, results, step);
     return NULL;
 }
-void* thread_function2(void* args){
+void* thread_function2(void *var){
 
-    _fft(input + 1, results + 1, 2);
+    int step = *(int*)var;
+    _fft(input + 1, results + 1, step);
+    return NULL;
+}
+void* thread_function3(void *var){
+
+    int step = *(int*)var;
+    _fft(input + 2, results + 2, step);
+    return NULL;
+}
+void* thread_function4(void *var){
+
+    int step = *(int*)var;
+    _fft(input + 3, results + 3, step);
     return NULL;
 }
 
@@ -92,14 +80,14 @@ void twoThreads(){
 
     int i;
     pthread_t tid[T];
-
-    pthread_create(&(tid[0]), NULL, thread_function1, NULL);
-    pthread_create(&(tid[1]), NULL, thread_function2, NULL);
+    int step = 2;
+    pthread_create(&(tid[0]), NULL, thread_function1, &step);
+    pthread_create(&(tid[1]), NULL, thread_function2, &step);
     
     for(i = 0; i < T; i++) {
         pthread_join(tid[i], NULL);
     }
-    int step = 1;
+    step = 1;
     for (int i = 0; i < n; i += 2 * step) {
         double complex t = cexp(-I * M_PI * i / n) * input[i + step];
         results[i / 2]     = input[i] + t;
@@ -108,12 +96,46 @@ void twoThreads(){
 
 }
 
+void fourThreads(){
 
+    int i;
+    pthread_t tid[T];
+    int step = 4;
+    pthread_create(&(tid[0]), NULL, thread_function1, &step);
+    pthread_create(&(tid[1]), NULL, thread_function2, &step);
+    pthread_create(&(tid[2]), NULL, thread_function3, &step);
+    pthread_create(&(tid[3]), NULL, thread_function4, &step);
+    
+    for(i = 0; i < T; i++) {
+        pthread_join(tid[i], NULL);
+    }
 
-    // _fft(results, input, step * 2);
-    // _fft(results + step, input + step, step * 2);
-    // _fft(results + step + 1, input + step + 1, step * 2);
-    // _fft(results + step + 2, input + step + 2, step * 2);
+    step = 2;
+
+    for (int i = 0; i < n; i += 2 * step) {
+        double complex t = cexp(-I * M_PI * i / n) * input[i + step];
+        results[i / 2]     = input[i] + t;
+        results[(i + n)/2] = input[i] - t;
+    }
+    input = input + 1;
+    results = results + 1;
+
+    for (int i = 0; i < n; i += 2 * step) {
+        double complex t = cexp(-I * M_PI * i / n) * input[i + step];
+        results[i / 2]     = input[i] + t;
+        results[(i + n)/2] = input[i] - t;
+    }
+    step = 1;
+    input = input - 1;
+    results = results - 1;
+    for (int i = 0; i < n; i += 2 * step) {
+        double complex t = cexp(-I * M_PI * i / n) * results[i + step];
+        input[i / 2]     = results[i] + t;
+        input[(i + n)/2] = results[i] - t;
+    }
+    results = input;
+
+}
  
 
 void printResults() {
@@ -160,10 +182,9 @@ void run(){
     else if (T == 2){
         fprintf(stdout, "2 Threads \n");
         twoThreads();
-        //exit(1);
     }
     else if (T == 4){
-        exit(1);
+        fourThreads();
     }
     else {
         fprintf(stdout, "No. of threads must be 1, 2, 4!");
@@ -183,8 +204,6 @@ int main(int argc, char * argv[]){
         results[i] = input[i];
     run();
 
-    
-    
     printResults();
 
     return 0;
